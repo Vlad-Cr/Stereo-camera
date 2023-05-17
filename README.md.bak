@@ -1,7 +1,11 @@
-# Stereo-camera
-PA#1 (WebGL stereo camera)
+# Surface-Rendering
+Calculation and graphics work (Operations on texture coordinates )
 
-Varian - 24
+Varian - 27
+
+Odd variant - scaling
+Use WASD to change the position of scaling point
+Use + and - to scale surface texture
 
 Wallis's conical edge
 
