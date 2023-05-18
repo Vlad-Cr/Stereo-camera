@@ -1421,7 +1421,31 @@
     return dst;
   }
 
+  function loadIdentity() {
+    dst = new MatType(16);
+
+    dst[ 0] = 1.0;
+    dst[ 1] = 0.0;
+    dst[ 2] = 0.0;
+    dst[ 3] = 0.0;
+    dst[ 4] = 0.0;
+    dst[ 5] = 1.0
+    dst[ 6] = 0.0;
+    dst[ 7] = 0.0;
+    dst[ 8] = 0.0;
+    dst[ 9] = 0.0;
+    dst[10] = 1.0;
+    dst[11] = 0.0;
+    dst[12] = 0.0;
+    dst[13] = 0.0;
+    dst[14] = 0.0;
+    dst[15] = 1.0;
+
+    return dst;
+  }
+
   return {
+    loadIdentity: loadIdentity,
     copy: copy,
     lookAt: lookAt,
     addVectors: addVectors,

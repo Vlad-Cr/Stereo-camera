@@ -9,6 +9,18 @@ let ScalePointLocationU = 0.0;
 let ScalePointLocationV = 0.0;
 let ControllerScaleValue = 1;
 
+let StrCamera = new StereoCamera(
+            10.0,     // Convergence
+            8.0,       // Eye Separation
+            1.3333,     // Aspect Ratio
+            45.0,       // FOV along Y in degrees
+            2.0,       // Near Clipping Distance
+            20.0);   // Far Clipping Distance
+
+let WorldMatrix = m4.translation(0, 0, -10);
+let ModelView = m4.translation(0, 0, 0);
+let ProjectionMatrix = m4.translation(0, 0, 0);
+
 function deg2rad(angle) {
     return angle * Math.PI / 180;
 }
@@ -59,7 +71,7 @@ function Model(name) {
         gl.drawArrays(gl.TRIANGLE_STRIP, 0, this.count);
 
         // Draw point
-
+        /*
         gl.uniform1i(shProgram.iDrawPoint, true);
 
         gl.uniform3fv(shProgram.iScalePointWorldLocation, [CalcX(ScalePointLocationU, ScalePointLocationV), CalcY(ScalePointLocationU, ScalePointLocationV), CalcZ(ScalePointLocationU, ScalePointLocationV)]);
@@ -69,6 +81,7 @@ function Model(name) {
         gl.enableVertexAttribArray(shProgram.iAttribVertex);
      
         gl.drawArrays(gl.POINTS, 0, 1);
+        */
     }
 }
 
@@ -115,20 +128,45 @@ function draw() {
 
     // Enable the depth buffer
     gl.enable(gl.DEPTH_TEST);
-    
-    /* Set the values of the projection transformation */
-    let projection = m4.perspective(Math.PI/8, 1, 8, 12);
 
+    //
+    //WorldMatrix = m4.translation(0, 0, -10);
     /* Get the view matrix from the SimpleRotator object.*/
-    let modelView = spaceball.getViewMatrix();
+    let SpaceBallView = spaceball.getViewMatrix();
+    /* Set the values of the projection transformation */
+    //ProjectionMatrix = m4.perspective(Math.PI/8, 1, 8, 12);
+    //
 
-    let WorldMatrix = m4.translation(0, 0, -10);
+    let Matrixes = StrCamera.ApplyLeftFrustum();
+    ModelView = Matrixes[0];
+    ModelView = m4.multiply(ModelView, SpaceBallView);
+    ProjectionMatrix = Matrixes[1];
 
-    let matAccum1 = m4.multiply(WorldMatrix, modelView );
-    let modelViewProjection = m4.multiply(projection, matAccum1 );
+    gl.colorMask(true, false, false, false);
+    DrawSurface();
 
-    var worldInverseMatrix = m4.inverse(matAccum1);
-    var worldInverseTransposeMatrix = m4.transpose(worldInverseMatrix);
+    gl.clear(gl.DEPTH_BUFFER_BIT) ;
+
+    Matrixes = StrCamera.ApplyRightFrustum();
+    ModelView = Matrixes[0];
+    ModelView = m4.multiply(ModelView, SpaceBallView);
+    ProjectionMatrix = Matrixes[1];
+
+    gl.colorMask(false, true, true, false);
+    DrawSurface();
+
+    gl.colorMask(true, true, true, true);
+}
+
+function DrawSurface()
+{
+    //
+    let WorldViewMatrix = m4.multiply(WorldMatrix, ModelView );
+    let ModelViewProjection = m4.multiply(ProjectionMatrix, WorldViewMatrix);
+
+    let worldInverseMatrix = m4.inverse(WorldViewMatrix);
+    let worldInverseTransposeMatrix = m4.transpose(worldInverseMatrix);
+    //
 
     gl.uniform3fv(shProgram.iViewWorldPosition, [0, 0, 0]); 
 
@@ -136,14 +174,12 @@ function draw() {
     gl.uniform3fv(shProgram.iLightDirection, [0, -1, 0]);
 
     gl.uniformMatrix4fv(shProgram.iWorldInverseTranspose, false, worldInverseTransposeMatrix);
-    gl.uniformMatrix4fv(shProgram.iModelViewProjectionMatrix, false, modelViewProjection );
-    gl.uniformMatrix4fv(shProgram.iWorldMatrix, false, matAccum1 );
+    gl.uniformMatrix4fv(shProgram.iModelViewProjectionMatrix, false, ModelViewProjection );
+    gl.uniformMatrix4fv(shProgram.iWorldMatrix, false, WorldViewMatrix );
     
     gl.uniform4fv(shProgram.iColor, [0.5,0.5,0.5,1] );
-
     gl.uniform2fv(shProgram.iScalePointLocation, [ScalePointLocationU / 360.0, ScalePointLocationV / 90.0] );
     gl.uniform1f(shProgram.iScaleValue, ControllerScaleValue);
-
     gl.uniform1i(shProgram.iTexture, 0);
     
     surface.Draw();
