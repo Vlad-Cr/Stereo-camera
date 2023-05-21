@@ -112,9 +112,9 @@ void main() {
     
         vec4 TextureColor = texture2D(u_texture, v_texcoord);
 
-        gl_FragColor = color;
-        gl_FragColor.rgb *= light;
-        gl_FragColor.rgb += specular;
+        //gl_FragColor = color;
+        //gl_FragColor.rgb *= light;
+        //gl_FragColor.rgb += specular;
 
         gl_FragColor += TextureColor;
     }
