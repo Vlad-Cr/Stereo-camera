@@ -9,13 +9,18 @@ let ScalePointLocationU = 0.0;
 let ScalePointLocationV = 0.0;
 let ControllerScaleValue = 1;
 
+let EyeSeparationValue = 10.0;
+let FieldOfViewValue = 45.0;
+let NearClippingDistanceValue = 1.0;
+let ConvergenceDistanceValue = 70.0;
+
 let StrCamera = new StereoCamera(
-            10.0,     // Convergence
-            8.0,       // Eye Separation
-            1.3333,     // Aspect Ratio
-            45.0,       // FOV along Y in degrees
-            2.0,       // Near Clipping Distance
-            20.0);   // Far Clipping Distance
+            ConvergenceDistanceValue,    // Convergence
+            EyeSeparationValue,          // Eye Separation
+            1.3333,                      // Aspect Ratio
+            FieldOfViewValue,            // FOV along Y in degrees
+            NearClippingDistanceValue,   // Near Clipping Distance
+            20000.0);                    // Far Clipping Distance
 
 let WorldMatrix = m4.translation(0, 0, -10);
 let ModelView = m4.translation(0, 0, 0);
@@ -136,6 +141,8 @@ function draw() {
     /* Set the values of the projection transformation */
     //ProjectionMatrix = m4.perspective(Math.PI/8, 1, 8, 12);
     //
+
+    StrCamera.Update(ConvergenceDistanceValue, EyeSeparationValue, FieldOfViewValue, NearClippingDistanceValue);
 
     let Matrixes = StrCamera.ApplyLeftFrustum();
     ModelView = Matrixes[0];
@@ -421,6 +428,45 @@ function init() {
 
     LoadTexture();
 }
+
+const EyeSeparationRange = document.getElementById("eye_separation");
+const FieldOfViewRange = document.getElementById("field_of_view");
+const NearClippingDistanceRange = document.getElementById("near_clipping_distance");
+const ConvergenceDistanceRange = document.getElementById("convergence_distance");
+
+const EyeSeparationOut = document.getElementById("eye_separation_value");
+const FieldOfViewOut = document.getElementById("field_of_view_value");
+const NearClippingDistanceOut = document.getElementById("near_clipping_distance_value");
+const ConvergenceDistanceOut = document.getElementById("convergence_distance_value");
+
+EyeSeparationOut.textContent = EyeSeparationValue;
+FieldOfViewOut.textContent = FieldOfViewValue;
+NearClippingDistanceOut.textContent = NearClippingDistanceValue;
+ConvergenceDistanceOut.textContent = ConvergenceDistanceValue;
+
+EyeSeparationRange.addEventListener("input", (event) => {
+    EyeSeparationValue = Number(event.target.value);
+    EyeSeparationOut.textContent = EyeSeparationValue;
+    draw();
+  })
+
+FieldOfViewRange.addEventListener("input", (event) => {
+    FieldOfViewValue = Number(event.target.value);
+    FieldOfViewOut.textContent = FieldOfViewValue;
+    draw();
+  })
+
+NearClippingDistanceRange.addEventListener("input", (event) => {
+    NearClippingDistanceValue = Number(event.target.value);
+    NearClippingDistanceOut.textContent = NearClippingDistanceValue;
+    draw();
+  })
+
+ConvergenceDistanceRange.addEventListener("input", (event) => {
+    ConvergenceDistanceValue = Number(event.target.value);
+    ConvergenceDistanceOut.textContent = ConvergenceDistanceValue;
+    draw();
+  })
 
 window.addEventListener("keydown", function (event) {  
     switch (event.key) {
