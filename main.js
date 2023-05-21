@@ -66,8 +66,6 @@ function Model(name) {
     }
 
     this.Draw = function() {
-        gl.uniform1i(shProgram.iDrawPoint, false);
-
         gl.bindBuffer(gl.ARRAY_BUFFER, this.iVertexBuffer);
         gl.vertexAttribPointer(shProgram.iAttribVertex, 3, gl.FLOAT, false, 0, 0);
         gl.enableVertexAttribArray(shProgram.iAttribVertex);
@@ -81,19 +79,6 @@ function Model(name) {
         gl.enableVertexAttribArray(shProgram.iTextureCoords);
 
         gl.drawArrays(gl.TRIANGLE_STRIP, 0, this.count);
-
-        // Draw point
-        /*
-        gl.uniform1i(shProgram.iDrawPoint, true);
-
-        gl.uniform3fv(shProgram.iScalePointWorldLocation, [CalcX(ScalePointLocationU, ScalePointLocationV), CalcY(ScalePointLocationU, ScalePointLocationV), CalcZ(ScalePointLocationU, ScalePointLocationV)]);
-
-        gl.bindBuffer(gl.ARRAY_BUFFER, this.iVertexBuffer);
-        gl.vertexAttribPointer(shProgram.iAttribVertex, 3, gl.FLOAT, false, 0, 0);
-        gl.enableVertexAttribArray(shProgram.iAttribVertex);
-     
-        gl.drawArrays(gl.POINTS, 0, 1);
-        */
     }
 }
 
@@ -123,8 +108,6 @@ function ShaderProgram(name, program) {
     this.iScalePointLocation = -1;
     this.iScaleValue = -1;
 
-    this.iDrawPoint = -1;
-
     this.iScalePointWorldLocation = -1;
    
     this.Use = function() {
@@ -137,17 +120,9 @@ function draw() {
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
     gl.enable(gl.CULL_FACE);
-
-    // Enable the depth buffer
     gl.enable(gl.DEPTH_TEST);
 
-    //
-    //WorldMatrix = m4.translation(0, 0, -10);
-    /* Get the view matrix from the SimpleRotator object.*/
     let SpaceBallView = spaceball.getViewMatrix();
-    /* Set the values of the projection transformation */
-    //ProjectionMatrix = m4.perspective(Math.PI/8, 1, 8, 12);
-    //
 
     DrawWebCamVideo();
 
@@ -178,13 +153,11 @@ function draw() {
 
 function DrawSurface()
 {
-    //
     let WorldViewMatrix = m4.multiply(WorldMatrix, ModelView );
     let ModelViewProjection = m4.multiply(ProjectionMatrix, WorldViewMatrix);
 
     let worldInverseMatrix = m4.inverse(WorldViewMatrix);
     let worldInverseTransposeMatrix = m4.transpose(worldInverseMatrix);
-    //
 
     gl.uniform3fv(shProgram.iViewWorldPosition, [0, 0, 0]); 
 
@@ -207,14 +180,7 @@ function DrawSurface()
 function DrawWebCamVideo()
 {
     gl.bindTexture(gl.TEXTURE_2D, TextureWebCam);
-    gl.texImage2D(
-        gl.TEXTURE_2D,
-        0,
-        gl.RGBA,
-        gl.RGBA,
-        gl.UNSIGNED_BYTE,
-        video
-    );
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, video);
     
     let ViewMatrix = m4.translation(0, 0, 0);
     let projection = m4.orthographic(-CanvasWidth / 2.0, CanvasWidth / 2.0, -CanvasHeight / 2.0, CanvasHeight / 2.0, 1.0, 20000);
@@ -301,17 +267,6 @@ function CreateSurfaceData()
     }
 
     return [vertexList, normalsList, textCoords];
-}
-
-function CreatePointData()
-{
-    let vertexList = [
-
-
-
-    ];
-    let normalsList = [];
-    let textCoords = [];
 }
 
 function CalcX(u, v)
@@ -402,8 +357,6 @@ function initGL() {
 
     shProgram.iScalePointLocation        = gl.getUniformLocation(prog, "ScalePointLocation");
     shProgram.iScaleValue                = gl.getUniformLocation(prog, "ScaleValue");
-    
-    shProgram.iDrawPoint                 = gl.getUniformLocation(prog, "bDrawpoint");
 
     shProgram.iScalePointWorldLocation   = gl.getUniformLocation(prog, "ScalePointWorldLocation");
 
@@ -414,7 +367,6 @@ function initGL() {
     BackgroundVideoModel = new Model();
     let BackgroundData = CreateBackgroundData();
     BackgroundVideoModel.BufferData(BackgroundData[0], BackgroundData[1], BackgroundData[2]);
-   // gl.enable(gl.DEPTH_TEST);
 }
 
 
