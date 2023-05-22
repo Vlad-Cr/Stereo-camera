@@ -2,12 +2,36 @@
 
 let gl;                         // The webgl context.
 let surface;                    // A surface model
+let BackgroundVideoModel;
 let shProgram;                  // A shader program
 let spaceball;                  // A SimpleRotator object that lets the user rotate the view by mouse.
 let InputCounter = 0.0;
 let ScalePointLocationU = 0.0;
 let ScalePointLocationV = 0.0;
 let ControllerScaleValue = 1;
+let CanvasWidth;
+let CanvasHeight;
+let SurfaceTexture;
+
+let EyeSeparationValue = 7.0;
+let FieldOfViewValue = 45.0;
+let NearClippingDistanceValue = 1.0;
+let ConvergenceDistanceValue = 10.5;
+
+let StrCamera = new StereoCamera(
+            ConvergenceDistanceValue,    // Convergence
+            EyeSeparationValue,          // Eye Separation
+            1.0,                         // Aspect Ratio
+            FieldOfViewValue,            // FOV along Y in degrees
+            NearClippingDistanceValue,   // Near Clipping Distance
+            20000.0);                    // Far Clipping Distance
+
+let WorldMatrix = m4.translation(0, 0, -12);
+let ModelView = m4.translation(0, 0, 0);
+let ProjectionMatrix = m4.translation(0, 0, 0);
+
+let TextureWebCam;
+let video;
 
 function deg2rad(angle) {
     return angle * Math.PI / 180;
@@ -42,8 +66,6 @@ function Model(name) {
     }
 
     this.Draw = function() {
-        gl.uniform1i(shProgram.iDrawPoint, false);
-
         gl.bindBuffer(gl.ARRAY_BUFFER, this.iVertexBuffer);
         gl.vertexAttribPointer(shProgram.iAttribVertex, 3, gl.FLOAT, false, 0, 0);
         gl.enableVertexAttribArray(shProgram.iAttribVertex);
@@ -57,18 +79,6 @@ function Model(name) {
         gl.enableVertexAttribArray(shProgram.iTextureCoords);
 
         gl.drawArrays(gl.TRIANGLE_STRIP, 0, this.count);
-
-        // Draw point
-
-        gl.uniform1i(shProgram.iDrawPoint, true);
-
-        gl.uniform3fv(shProgram.iScalePointWorldLocation, [CalcX(ScalePointLocationU, ScalePointLocationV), CalcY(ScalePointLocationU, ScalePointLocationV), CalcZ(ScalePointLocationU, ScalePointLocationV)]);
-
-        gl.bindBuffer(gl.ARRAY_BUFFER, this.iVertexBuffer);
-        gl.vertexAttribPointer(shProgram.iAttribVertex, 3, gl.FLOAT, false, 0, 0);
-        gl.enableVertexAttribArray(shProgram.iAttribVertex);
-     
-        gl.drawArrays(gl.POINTS, 0, 1);
     }
 }
 
@@ -98,8 +108,6 @@ function ShaderProgram(name, program) {
     this.iScalePointLocation = -1;
     this.iScaleValue = -1;
 
-    this.iDrawPoint = -1;
-
     this.iScalePointWorldLocation = -1;
    
     this.Use = function() {
@@ -112,23 +120,44 @@ function draw() {
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
     gl.enable(gl.CULL_FACE);
-
-    // Enable the depth buffer
     gl.enable(gl.DEPTH_TEST);
-    
-    /* Set the values of the projection transformation */
-    let projection = m4.perspective(Math.PI/8, 1, 8, 12);
 
-    /* Get the view matrix from the SimpleRotator object.*/
-    let modelView = spaceball.getViewMatrix();
+    let SpaceBallView = spaceball.getViewMatrix();
 
-    let WorldMatrix = m4.translation(0, 0, -10);
+    DrawWebCamVideo();
 
-    let matAccum1 = m4.multiply(WorldMatrix, modelView );
-    let modelViewProjection = m4.multiply(projection, matAccum1 );
+    gl.clear(gl.DEPTH_BUFFER_BIT) ;
 
-    var worldInverseMatrix = m4.inverse(matAccum1);
-    var worldInverseTransposeMatrix = m4.transpose(worldInverseMatrix);
+    StrCamera.Update(ConvergenceDistanceValue, EyeSeparationValue, FieldOfViewValue, NearClippingDistanceValue);
+
+    let Matrixes = StrCamera.ApplyLeftFrustum();
+    ModelView = Matrixes[0];
+    ModelView = m4.multiply(ModelView, SpaceBallView);
+    ProjectionMatrix = Matrixes[1];
+
+    gl.colorMask(false, true, true, false);
+    DrawSurface();
+
+    gl.clear(gl.DEPTH_BUFFER_BIT) ;
+
+    Matrixes = StrCamera.ApplyRightFrustum();
+    ModelView = Matrixes[0];
+    ModelView = m4.multiply(ModelView, SpaceBallView);
+    ProjectionMatrix = Matrixes[1];
+
+    gl.colorMask(true, false, false, false);
+    DrawSurface();
+
+    gl.colorMask(true, true, true, true);
+}
+
+function DrawSurface()
+{
+    let WorldViewMatrix = m4.multiply(WorldMatrix, ModelView );
+    let ModelViewProjection = m4.multiply(ProjectionMatrix, WorldViewMatrix);
+
+    let worldInverseMatrix = m4.inverse(WorldViewMatrix);
+    let worldInverseTransposeMatrix = m4.transpose(worldInverseMatrix);
 
     gl.uniform3fv(shProgram.iViewWorldPosition, [0, 0, 0]); 
 
@@ -136,17 +165,48 @@ function draw() {
     gl.uniform3fv(shProgram.iLightDirection, [0, -1, 0]);
 
     gl.uniformMatrix4fv(shProgram.iWorldInverseTranspose, false, worldInverseTransposeMatrix);
-    gl.uniformMatrix4fv(shProgram.iModelViewProjectionMatrix, false, modelViewProjection );
-    gl.uniformMatrix4fv(shProgram.iWorldMatrix, false, matAccum1 );
+    gl.uniformMatrix4fv(shProgram.iModelViewProjectionMatrix, false, ModelViewProjection );
+    gl.uniformMatrix4fv(shProgram.iWorldMatrix, false, WorldViewMatrix );
     
     gl.uniform4fv(shProgram.iColor, [0.5,0.5,0.5,1] );
-
     gl.uniform2fv(shProgram.iScalePointLocation, [ScalePointLocationU / 360.0, ScalePointLocationV / 90.0] );
     gl.uniform1f(shProgram.iScaleValue, ControllerScaleValue);
-
+    gl.bindTexture(gl.TEXTURE_2D, SurfaceTexture);
     gl.uniform1i(shProgram.iTexture, 0);
     
     surface.Draw();
+}
+
+function DrawWebCamVideo()
+{
+    gl.bindTexture(gl.TEXTURE_2D, TextureWebCam);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, video);
+    
+    let ViewMatrix = m4.translation(0, 0, 0);
+    let projection = m4.orthographic(-CanvasWidth / 2.0, CanvasWidth / 2.0, -CanvasHeight / 2.0, CanvasHeight / 2.0, 1.0, 20000);
+
+    let WorldViewMatrix = m4.multiply(m4.translation(0, 0, -100), ViewMatrix);
+    let ModelViewProjection = m4.multiply(projection, WorldViewMatrix);
+
+    gl.uniformMatrix4fv(shProgram.iModelViewProjectionMatrix, false, ModelViewProjection );
+    
+    gl.uniform1i(shProgram.iTexture, 0);
+
+    BackgroundVideoModel.Draw();
+}
+
+function CreateBackgroundData()
+{
+    let vertexList = [-CanvasWidth / 2.0, -CanvasHeight / 2.0, 0,
+                        -CanvasWidth / 2.0, CanvasHeight / 2.0, 0,
+                        CanvasWidth / 2.0, CanvasHeight / 2.0, 0,
+                        -CanvasWidth / 2.0, -CanvasHeight / 2.0, 0,
+                        CanvasWidth / 2.0, CanvasHeight / 2.0, 0,
+                        CanvasWidth / 2.0, -CanvasHeight / 2.0, 0];
+    let normalsList = [0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1];
+    let textCoords = [1, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 1];
+
+    return [vertexList, normalsList, textCoords];
 }
 
 function CreateSurfaceData()
@@ -207,17 +267,6 @@ function CreateSurfaceData()
     }
 
     return [vertexList, normalsList, textCoords];
-}
-
-function CreatePointData()
-{
-    let vertexList = [
-
-
-
-    ];
-    let normalsList = [];
-    let textCoords = [];
 }
 
 function CalcX(u, v)
@@ -308,8 +357,6 @@ function initGL() {
 
     shProgram.iScalePointLocation        = gl.getUniformLocation(prog, "ScalePointLocation");
     shProgram.iScaleValue                = gl.getUniformLocation(prog, "ScaleValue");
-    
-    shProgram.iDrawPoint                 = gl.getUniformLocation(prog, "bDrawpoint");
 
     shProgram.iScalePointWorldLocation   = gl.getUniformLocation(prog, "ScalePointWorldLocation");
 
@@ -317,7 +364,9 @@ function initGL() {
     let SurfaceData = CreateSurfaceData();
     surface.BufferData(SurfaceData[0], SurfaceData[1], SurfaceData[2]);
 
-   // gl.enable(gl.DEPTH_TEST);
+    BackgroundVideoModel = new Model();
+    let BackgroundData = CreateBackgroundData();
+    BackgroundVideoModel.BufferData(BackgroundData[0], BackgroundData[1], BackgroundData[2]);
 }
 
 
@@ -360,6 +409,10 @@ function init() {
     let canvas;
     try {
         canvas = document.getElementById("webglcanvas");
+
+        CanvasWidth = canvas.scrollWidth;
+        CanvasHeight = canvas.scrollHeight;
+
         gl = canvas.getContext("webgl");
         if ( ! gl ) {
             throw "Browser does not support WebGL";
@@ -381,10 +434,68 @@ function init() {
         return;
     }
 
-    spaceball = new TrackballRotator(canvas, draw, 0);
+ 
+    video = document.createElement('video');
+    video.setAttribute('autoplay', true);
+    window.vid = video;
+        
+    navigator.getUserMedia({ video: true, audio: false }, function (stream) {
+        video.srcObject = stream;
+    }, function (e) {
+        console.error('Rejected!', e);
+    });
 
+    SetUpWebCamTexture();
+
+    spaceball = new TrackballRotator(canvas, draw, 0);
     LoadTexture();
+  
+    playVideo();
 }
+
+function playVideo(){
+    draw();
+    setInterval(playVideo, 1/24);
+}
+
+const EyeSeparationRange = document.getElementById("eye_separation");
+const FieldOfViewRange = document.getElementById("field_of_view");
+const NearClippingDistanceRange = document.getElementById("near_clipping_distance");
+const ConvergenceDistanceRange = document.getElementById("convergence_distance");
+
+const EyeSeparationOut = document.getElementById("eye_separation_value");
+const FieldOfViewOut = document.getElementById("field_of_view_value");
+const NearClippingDistanceOut = document.getElementById("near_clipping_distance_value");
+const ConvergenceDistanceOut = document.getElementById("convergence_distance_value");
+
+EyeSeparationOut.textContent = EyeSeparationValue;
+FieldOfViewOut.textContent = FieldOfViewValue;
+NearClippingDistanceOut.textContent = NearClippingDistanceValue;
+ConvergenceDistanceOut.textContent = ConvergenceDistanceValue;
+
+EyeSeparationRange.addEventListener("input", (event) => {
+    EyeSeparationValue = Number(event.target.value);
+    EyeSeparationOut.textContent = EyeSeparationValue;
+    draw();
+  })
+
+FieldOfViewRange.addEventListener("input", (event) => {
+    FieldOfViewValue = Number(event.target.value);
+    FieldOfViewOut.textContent = FieldOfViewValue;
+    draw();
+  })
+
+NearClippingDistanceRange.addEventListener("input", (event) => {
+    NearClippingDistanceValue = Number(event.target.value);
+    NearClippingDistanceOut.textContent = NearClippingDistanceValue;
+    draw();
+  })
+
+ConvergenceDistanceRange.addEventListener("input", (event) => {
+    ConvergenceDistanceValue = Number(event.target.value);
+    ConvergenceDistanceOut.textContent = ConvergenceDistanceValue;
+    draw();
+  })
 
 window.addEventListener("keydown", function (event) {  
     switch (event.key) {
@@ -449,8 +560,8 @@ function CalcParabola()
 
 function LoadTexture()
 {
-    var texture = gl.createTexture();
-    gl.bindTexture(gl.TEXTURE_2D, texture);
+    SurfaceTexture = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, SurfaceTexture);
 
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
@@ -464,13 +575,24 @@ function LoadTexture()
     image.crossOrigin = "anonymous"
     image.src = "https://i1.photo.2gis.com/images/profile/30258560049997155_fe3f.jpg";
     image.addEventListener('load', function() {
-        gl.bindTexture(gl.TEXTURE_2D, texture);
+        gl.bindTexture(gl.TEXTURE_2D, SurfaceTexture);
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA,gl.UNSIGNED_BYTE, image);
 
         console.log("Texture is loaded!");
 
         draw();
     });
+}
+
+function SetUpWebCamTexture()
+{
+    TextureWebCam = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, TextureWebCam);
+
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 }
 
 function ProcessWDown()
