@@ -9,6 +9,8 @@ Wallis's conical edge
 
 ![image](https://user-images.githubusercontent.com/69111575/198850970-b206ad3f-b58b-419e-88d3-e443b43e8631.png)
 
-![image](https://user-images.githubusercontent.com/69111575/209471587-d0759969-041f-4a6e-bf68-8b96a06e0cce.png)
+![1](https://github.com/Vlad-Cr/Stereo-camera/assets/69111575/4b8be809-631b-4428-8f3c-ff4cd0c76d71)
 
-![anim1](https://user-images.githubusercontent.com/69111575/209471748-1f8ae508-c0a0-4d47-a5cc-e8e456fe3039.gif)
+![3](https://github.com/Vlad-Cr/Stereo-camera/assets/69111575/936e5704-2399-4d68-a7ae-5f6aa92ee638)
+
+![2](https://github.com/Vlad-Cr/Stereo-camera/assets/69111575/302a5cb8-6c5f-463c-a905-ad9ffcd9b145)
