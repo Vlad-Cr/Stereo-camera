@@ -14,3 +14,5 @@ Wallis's conical edge
 ![3](https://github.com/Vlad-Cr/Stereo-camera/assets/69111575/936e5704-2399-4d68-a7ae-5f6aa92ee638)
 
 ![2](https://github.com/Vlad-Cr/Stereo-camera/assets/69111575/302a5cb8-6c5f-463c-a905-ad9ffcd9b145)
+
+![4](https://github.com/Vlad-Cr/Stereo-camera/assets/69111575/eb002efe-9ffa-44b3-8aa7-09c077215edc)
